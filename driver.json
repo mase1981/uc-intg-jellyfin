@@ -1,0 +1,85 @@
+{
+  "driver_id": "uc_intg_jellyfin",
+  "version": "1.0.0",
+  "min_core_api": "0.20.0",
+  "name": {
+    "en": "Jellyfin"
+  },
+  "icon": "uc:tv-music",
+  "description": {
+    "en": "Integration for Jellyfin media server with comprehensive media player and remote control support"
+  },
+  "developer": {
+    "name": "Meir Miyara",
+    "email": "meir.miyara@gmail.com"
+  },
+  "home_page": "https://github.com/your-username/uc-intg-jellyfin",
+  "setup_data_schema": {
+    "title": {
+      "en": "Jellyfin Server Setup"
+    },
+    "settings": [
+      {
+        "id": "host",
+        "label": {
+          "en": "Server URL"
+        },
+        "field": {
+          "text": {
+            "value": ""
+          }
+        },
+        "required": true,
+        "description": {
+          "en": "Full URL of your Jellyfin server (e.g., http://192.168.1.100:8096 or https://jellyfin.mydomain.com:8920)"
+        }
+      },
+      {
+        "id": "username", 
+        "label": {
+          "en": "Username"
+        },
+        "field": {
+          "text": {
+            "value": ""
+          }
+        },
+        "required": true,
+        "description": {
+          "en": "Jellyfin username for authentication"
+        }
+      },
+      {
+        "id": "password",
+        "label": {
+          "en": "Password"
+        },
+        "field": {
+          "password": {
+            "value": ""
+          }
+        },
+        "required": true,
+        "description": {
+          "en": "Jellyfin password for authentication"
+        }
+      },
+      {
+        "id": "otp_code",
+        "label": {
+          "en": "2FA Code (Optional)"
+        },
+        "field": {
+          "text": {
+            "value": ""
+          }
+        },
+        "required": false,
+        "description": {
+          "en": "Enter your 6-digit two-factor authentication code if you have it enabled."
+        }
+      }
+    ]
+  },
+  "release_date": "2025-01-11"
+}

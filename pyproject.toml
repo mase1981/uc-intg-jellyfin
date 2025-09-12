@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "uc-intg-jellyfin"
+dynamic = ["version"]
+description = "Jellyfin integration for Unfolded Circle Remote Two/3"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Meir Miyara", email = "meir.miyara@gmail.com"}
+]
+keywords = ["jellyfin", "unfolded-circle", "remote", "integration"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop", 
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Home Automation",
+    "Topic :: Multimedia"
+]
+dependencies = [
+    "ucapi>=0.3.1",
+    "aiohttp>=3.8.0",
+    "asyncio-throttle>=1.0.2"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/mase1981/uc-intg-jellyfin"
+"Bug Reports" = "https://github.com/mase1981/uc-intg-jellyfin/issues"
+"Source" = "https://github.com/mase1981/uc-intg-jellyfin"
+
+[tool.setuptools_scm]
+write_to = "uc_intg_jellyfin/_version.py"
+
+[tool.setuptools.packages.find]
+include = ["uc_intg_jellyfin*"]
+
+[tool.setuptools.package-data]
+uc_intg_jellyfin = ["*.json"]
