@@ -65,7 +65,7 @@ Real-time display of media and playback status:
 
 The integration is available as a pre-built Docker image from GitHub Container Registry:
 
-**Image**: `ghcr.io/mmiyara/uc-intg-jellyfin:latest`
+**Image**: `ghcr.io/mase1981/uc-intg-jellyfin:latest`
 
 **Docker Compose:**
 ```yaml
@@ -83,7 +83,7 @@ services:
 
 **Docker Run:**
 ```bash
-docker run -d --name=uc-intg-jellyfin --network host -v </local/path>:/config --restart unless-stopped ghcr.io/makse1981/uc-intg-jellyfin:latest
+docker run -d --name=uc-intg-jellyfin --network host -v </local/path>:/config --restart unless-stopped ghcr.io/mase1981/uc-intg-jellyfin:latest
 ```
 
 ## Configuration
