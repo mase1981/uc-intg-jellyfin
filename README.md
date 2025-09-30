@@ -3,11 +3,14 @@
 Control your Jellyfin media server directly from your Unfolded Circle Remote 2 or Remote 3 with comprehensive media player functionality.
 
 ![Jellyfin](https://img.shields.io/badge/Jellyfin-Media%20Server-blue)
-![Version](https://img.shields.io/badge/version-1.0.0-green)
+[![Discord](https://badgen.net/discord/online-members/zGVYf58)](https://discord.gg/zGVYf58)
+![GitHub Release](https://img.shields.io/github/v/release/mase1981/uc-intg-jellyfin)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/mase1981/uc-intg-jellyfin/total)
 ![License](https://img.shields.io/badge/license-MPL--2.0-blue)
 [![Buy Me A Coffee](https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg)](https://buymeacoffee.com/meirmiyara)
 [![PayPal](https://img.shields.io/badge/PayPal-donate-blue.svg)](https://paypal.me/mmiyara)
 [![Github Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-30363D?&logo=GitHub-Sponsors&logoColor=EA4AAA)](https://github.com/sponsors/mase1981/button)
+
 
 ## Features
 
