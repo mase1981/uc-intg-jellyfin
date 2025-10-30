@@ -25,16 +25,14 @@ class JellyfinClient:
         self.password = password
         self.otp = otp
         
-        # Create official Jellyfin client
         self._jellyfin = Jellyfin()
         self._client = self._jellyfin.get_client()
         
-        # Configure client
         device_id = "jellyfin-integration-ucapi"
         device_name = socket.gethostname()
         app_name = "Jellyfin Integration"
-        app_version = "1.0.0"
-        user_agent = "Jellyfin-Integration/1.0.0"
+        app_version = "1.0.1"
+        user_agent = "Jellyfin-Integration/1.0.1"
         
         self._client.config.app(app_name, app_version, device_name, device_id)
         self._client.config.http(user_agent)
@@ -45,10 +43,8 @@ class JellyfinClient:
     async def connect(self) -> bool:
         """Connect and authenticate with Jellyfin server."""
         try:
-            # Set SSL config
             self._client.config.data["auth.ssl"] = self.host.startswith("https")
             
-            # Connect to server
             _LOG.debug("Connecting to Jellyfin server: %s", self.host)
             connect_result = self._client.auth.connect_to_address(self.host)
             
@@ -56,11 +52,8 @@ class JellyfinClient:
                 _LOG.error("Failed to connect to server")
                 return False
             
-            # Authenticate
             _LOG.debug("Authenticating user: %s", self.username)
 
-            # --- FIX STARTS HERE ---
-            # Conditionally call login based on whether an OTP was provided
             if self.otp:
                 _LOG.debug("Attempting login with 2FA code.")
                 auth_result = self._client.auth.login(
@@ -76,13 +69,11 @@ class JellyfinClient:
                     self.username, 
                     self.password
                 )
-            # --- FIX ENDS HERE ---
 
             if "AccessToken" not in auth_result:
                 _LOG.error("Authentication failed - no access token. Check credentials and 2FA code if applicable.")
                 return False
             
-            # Get user ID
             user_settings = self._client.jellyfin.get_user_settings()
             self._user_id = user_settings["Id"]
             
@@ -127,7 +118,6 @@ class JellyfinClient:
             
             _LOG.debug("Total sessions from server: %d", len(all_sessions))
             
-            # Filter by current user ID
             if self._user_id:
                 user_sessions = [s for s in all_sessions if s.get('UserId') == self._user_id]
                 _LOG.debug("Sessions for user ID %s: %d", self._user_id, len(user_sessions))
@@ -135,12 +125,10 @@ class JellyfinClient:
                 user_sessions = []
                 _LOG.warning("No user ID available for filtering")
             
-            # Fallback: Filter by username
             if not user_sessions and self.username:
                 user_sessions = [s for s in all_sessions if s.get('UserName') == self.username]
                 _LOG.debug("Sessions for username %s: %d", self.username, len(user_sessions))
             
-            # Final result
             _LOG.info("Returning %d sessions for integration", len(user_sessions))
             return user_sessions
             
@@ -148,7 +136,6 @@ class JellyfinClient:
             _LOG.error("Failed to get sessions: %s", e, exc_info=True)
             return []
     
-    # Session control methods using official client
     async def play_session(self, session_id: str) -> bool:
         """Send play command to session."""
         try:
@@ -280,40 +267,50 @@ class JellyfinClient:
             return False
     
     def get_artwork_url(self, item: Dict[str, Any], max_width: int = 600) -> Optional[str]:
-        """Get BETTER artwork URL for an item - tries Series/Season images first."""
+        """Get best artwork URL for an item, preferring Backdrop over Primary.
+
+        Priority:
+        - Episodes: Series Backdrop > Episode Backdrop > Series Primary > Season Primary > Episode Primary
+        - Movies/Other: Item Backdrop > Item Primary
+        """
         if not self._is_connected:
             return None
         
         try:
-            # Priority order for TV shows: Series Primary > Season Primary > Episode Primary
             artwork_id = None
             artwork_type = None
             
-            # For episodes, try to get series artwork first (better than episode thumbnail)
             if item.get("Type") == "Episode":
                 series_id = item.get("SeriesId")
-                if series_id and item.get("SeriesPrimaryImageTag"):
+                if series_id and item.get("SeriesBackdropImageTags"):
+                    artwork_id = series_id
+                    artwork_type = "Backdrop"
+                    _LOG.debug("Using Series Backdrop image for episode")
+                elif item.get("BackdropImageTags"):
+                    artwork_id = item["Id"]
+                    artwork_type = "Backdrop"
+                    _LOG.debug("Using Episode Backdrop image")
+                elif series_id and item.get("SeriesPrimaryImageTag"):
                     artwork_id = series_id
                     artwork_type = "Primary"
                     _LOG.debug("Using Series Primary image for episode")
-                elif item.get("SeasonId") and item.get("ImageTags", {}).get("Primary"):
-                    # Fallback to season image
+                elif item.get("SeasonId"):
                     artwork_id = item.get("SeasonId")
                     artwork_type = "Primary"
                     _LOG.debug("Using Season Primary image for episode")
                 elif "Primary" in item.get("ImageTags", {}):
-                    # Last resort: episode image
                     artwork_id = item["Id"]
                     artwork_type = "Primary"
                     _LOG.debug("Using Episode Primary image")
             else:
-                # For movies and other content, use Primary or Backdrop
-                if "Primary" in item.get("ImageTags", {}):
-                    artwork_type = "Primary"
-                    artwork_id = item["Id"]
-                elif "Backdrop" in item.get("ImageTags", {}):
+                if item.get("BackdropImageTags"):
                     artwork_type = "Backdrop"
                     artwork_id = item["Id"]
+                    _LOG.debug("Using Item Backdrop image")
+                elif "Primary" in item.get("ImageTags", {}):
+                    artwork_type = "Primary"
+                    artwork_id = item["Id"]
+                    _LOG.debug("Using Item Primary image")
             
             if artwork_id and artwork_type:
                 url = str(self._client.jellyfin.artwork(artwork_id, artwork_type, max_width))
