@@ -266,11 +266,31 @@ class JellyfinClient:
             _LOG.error("Failed to send play/pause toggle command: %s", e)
             return False
     
+    async def set_repeat_mode(self, session_id: str, repeat_mode: str) -> bool:
+        """Set repeat mode for session."""
+        try:
+            self._client.jellyfin.command(session_id, f"SetRepeatMode {repeat_mode}")
+            _LOG.debug("Sent set repeat mode command to session %s: %s", session_id, repeat_mode)
+            return True
+        except Exception as e:
+            _LOG.error("Failed to send set repeat mode command: %s", e)
+            return False
+    
+    async def set_shuffle_mode(self, session_id: str, shuffle_mode: str) -> bool:
+        """Set shuffle mode for session."""
+        try:
+            self._client.jellyfin.command(session_id, f"SetShuffleQueue {shuffle_mode}")
+            _LOG.debug("Sent set shuffle mode command to session %s: %s", session_id, shuffle_mode)
+            return True
+        except Exception as e:
+            _LOG.error("Failed to send set shuffle mode command: %s", e)
+            return False
+    
     def get_artwork_url(self, item: Dict[str, Any], max_width: int = 600) -> Optional[str]:
-        """Get best artwork URL for an item, preferring Backdrop over Primary.
+        """Get best artwork URL for an item, always preferring Backdrop over Primary.
 
         Priority:
-        - Episodes: Series Backdrop > Episode Backdrop > Series Primary > Season Primary > Episode Primary
+        - Episodes: Episode Backdrop > Series Backdrop > Episode Primary > Series Primary > Season Primary
         - Movies/Other: Item Backdrop > Item Primary
         """
         if not self._is_connected:
@@ -281,27 +301,26 @@ class JellyfinClient:
             artwork_type = None
             
             if item.get("Type") == "Episode":
-                series_id = item.get("SeriesId")
-                if series_id and item.get("SeriesBackdropImageTags"):
-                    artwork_id = series_id
-                    artwork_type = "Backdrop"
-                    _LOG.debug("Using Series Backdrop image for episode")
-                elif item.get("BackdropImageTags"):
+                if item.get("BackdropImageTags"):
                     artwork_id = item["Id"]
                     artwork_type = "Backdrop"
                     _LOG.debug("Using Episode Backdrop image")
-                elif series_id and item.get("SeriesPrimaryImageTag"):
-                    artwork_id = series_id
+                elif item.get("SeriesId") and item.get("SeriesBackdropImageTags"):
+                    artwork_id = item.get("SeriesId")
+                    artwork_type = "Backdrop"
+                    _LOG.debug("Using Series Backdrop image for episode")
+                elif "Primary" in item.get("ImageTags", {}):
+                    artwork_id = item["Id"]
+                    artwork_type = "Primary"
+                    _LOG.debug("Using Episode Primary image")
+                elif item.get("SeriesId") and item.get("SeriesPrimaryImageTag"):
+                    artwork_id = item.get("SeriesId")
                     artwork_type = "Primary"
                     _LOG.debug("Using Series Primary image for episode")
                 elif item.get("SeasonId"):
                     artwork_id = item.get("SeasonId")
                     artwork_type = "Primary"
                     _LOG.debug("Using Season Primary image for episode")
-                elif "Primary" in item.get("ImageTags", {}):
-                    artwork_id = item["Id"]
-                    artwork_type = "Primary"
-                    _LOG.debug("Using Episode Primary image")
             else:
                 if item.get("BackdropImageTags"):
                     artwork_type = "Backdrop"
