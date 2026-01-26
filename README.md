@@ -3,51 +3,67 @@
 Control your Jellyfin media server directly from your Unfolded Circle Remote 2 or Remote 3 with comprehensive media player functionality.
 
 ![Jellyfin](https://img.shields.io/badge/Jellyfin-Media%20Server-blue)
+[![GitHub Release](https://img.shields.io/github/v/release/mase1981/uc-intg-jellyfin?style=flat-square)](https://github.com/mase1981/uc-intg-jellyfin/releases)
+![License](https://img.shields.io/badge/license-MPL--2.0-blue?style=flat-square)
+[![GitHub issues](https://img.shields.io/github/issues/mase1981/uc-intg-jellyfin?style=flat-square)](https://github.com/mase1981/uc-intg-jellyfin/issues)
+[![Community Forum](https://img.shields.io/badge/community-forum-blue?style=flat-square)](https://community.unfoldedcircle.com/)
 [![Discord](https://badgen.net/discord/online-members/zGVYf58)](https://discord.gg/zGVYf58)
-![GitHub Release](https://img.shields.io/github/v/release/mase1981/uc-intg-jellyfin)
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/mase1981/uc-intg-jellyfin/total)
-![License](https://img.shields.io/badge/license-MPL--2.0-blue)
-[![Buy Me A Coffee](https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg)](https://buymeacoffee.com/meirmiyara)
-[![PayPal](https://img.shields.io/badge/PayPal-donate-blue.svg)](https://paypal.me/mmiyara)
-[![Github Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-30363D?&logo=GitHub-Sponsors&logoColor=EA4AAA)](https://github.com/sponsors/mase1981/button)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/mase1981/uc-intg-jellyfin/total?style=flat-square)
+[![Buy Me A Coffee](https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg?style=flat-square)](https://buymeacoffee.com/meirmiyara)
+[![PayPal](https://img.shields.io/badge/PayPal-donate-blue.svg?style=flat-square)](https://paypal.me/mmiyara)
+[![Github Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-30363D?&logo=GitHub-Sponsors&logoColor=EA4AAA&style=flat-square)](https://github.com/sponsors/mase1981)
 
 
 ## Features
 
 This integration provides Currently Playing Media and Basic Controls of your Jellyfin media server directly from your Unfolded Circle Remote.
 
-### 🎵 **Media Player Control**
+---
+## ❤️ Support Development ❤️
 
+If you find this integration useful, consider supporting development:
+
+[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub-pink?style=for-the-badge&logo=github)](https://github.com/sponsors/mase1981)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/meirmiyara)
+[![PayPal](https://img.shields.io/badge/PayPal-00457C?style=for-the-badge&logo=paypal&logoColor=white)](https://paypal.me/mmiyara)
+
+Your support helps maintain this integration. Thank you! ❤️
+---
+
+### 🎵 **Media Player Control**
 
 #### **Playback Control**
 - **Play/Pause Toggle** - Seamless playback control with visual feedback
 - **Stop** - Stop current playback and clear now playing
 - **Previous/Next Track** - Navigate through your media collection
-- **Fast Forward/Next/Rewind/Previous** - 30-second skip controls for easy navigation and Track Control
+- **Fast Forward/Rewind** - 30-second skip controls for easy navigation
+- **Track Control** - Previous/Next track navigation
 
 ### 📺 **Media Information Display**
 
 #### **Dynamic Status Information**
 Real-time display of media and playback status:
-- **Media State**: Playing, paused, stopped with visual indicators
-- **Current Media**: Title, series information, episode details
-- **Artwork Display**: High-quality poster/thumbnail display with smart fallbacks
-- **Progress Information**: Current position and total duration
+- **Media State** - Playing, paused, stopped with visual indicators
+- **Current Media** - Title, series information, episode details
+- **Artwork Display** - High-quality poster/thumbnail display with smart fallbacks
+- **Progress Information** - Current position and total duration
 
 #### **Smart Metadata Handling**
-- **TV Shows**: Series name, season/episode numbers, episode titles
-- **Movies**: Movie title, year, genre information
-- **Music**: Artist, album, track information
-- **Enhanced Titles**: Intelligent parsing of metadata for optimal display
+- **TV Shows** - Series name, season/episode numbers, episode titles
+- **Movies** - Movie title, year, genre information
+- **Music** - Artist, album, track information
+- **Enhanced Titles** - Intelligent parsing of metadata for optimal display
 
 ### **Server Requirements**
-- **Jellyfin Server**: Version 10.6.4 or higher recommended
-- **Network Access**: HTTP/HTTPS connectivity to Jellyfin server
-- **Authentication**: Username/password authentication required
-- **API Access**: Jellyfin HTTP API access (default on all installations)
-- **2FA Support**: Integration support optional 2FA
+
+- **Jellyfin Server** - Version 10.6.4 or higher recommended
+- **Network Access** - HTTP/HTTPS connectivity to Jellyfin server
+- **Authentication** - Username/password authentication required
+- **API Access** - Jellyfin HTTP API access (default on all installations)
+- **2FA Support** - Integration supports optional 2FA
 
 ### **Network Requirements**
+
 - **Local Network Access** - Integration requires same network as Jellyfin server
 - **Firewall Configuration** - Ensure Jellyfin port (default 8096) is accessible
 - **TLS/SSL Support** - Supports both HTTP and HTTPS connections
@@ -56,7 +72,7 @@ Real-time display of media and playback status:
 
 ### Option 1: Remote Web Interface (Recommended)
 1. Navigate to the [**Releases**](https://github.com/mase1981/uc-intg-jellyfin/releases) page
-2. Download the latest `uc-intg-jellyfin-<version>.tar.gz` file
+2. Download the latest `uc-intg-jellyfin-<version>-aarch64.tar.gz` file
 3. Open your remote's web interface (`http://your-remote-ip`)
 4. Go to **Settings** → **Integrations** → **Add Integration**
 5. Click **Upload** and select the downloaded `.tar.gz` file
@@ -75,200 +91,111 @@ services:
     container_name: uc-intg-jellyfin
     network_mode: host
     volumes:
-      - </local/path>:/config
+      - </local/path>:/data
     environment:
+      - UC_CONFIG_HOME=/data
       - UC_INTEGRATION_HTTP_PORT=9090
+      - UC_INTEGRATION_INTERFACE=0.0.0.0
+      - PYTHONPATH=/app
     restart: unless-stopped
 ```
 
 **Docker Run:**
 ```bash
-docker run -d --name=uc-intg-jellyfin --network host -v </local/path>:/config --restart unless-stopped ghcr.io/mase1981/uc-intg-jellyfin:latest
+docker run -d --name uc-jellyfin --restart unless-stopped --network host -v jellyfin-config:/app/config -e UC_CONFIG_HOME=/app/config -e UC_INTEGRATION_INTERFACE=0.0.0.0 -e UC_INTEGRATION_HTTP_PORT=9090 -e PYTHONPATH=/app ghcr.io/mase1981/uc-intg-jellyfin:latest
 ```
 
 ## Configuration
 
 ### Step 1: Prepare Your Jellyfin Server
 
-1. **Server Setup:**
-   - Ensure Jellyfin server is running and accessible on your network
-   - Note the server's IP address and port (default: 8096)
-   - Verify you can access the web interface at `http://server-ip:8096`
+**IMPORTANT**: Jellyfin server must be running and accessible on your network before setting up the integration.
 
-2. **User Account:**
-   - Create or use existing Jellyfin user account
-   - Ensure account has media library access
-   - Verify account can control media playback
-   - Note username and password for integration setup
+#### Server Setup:
+1. Ensure Jellyfin server is running and accessible
+2. Note the server's IP address and port (default: 8096)
+3. Verify you can access the web interface at `http://server-ip:8096`
 
-3. **Network Requirements:**
-   - Server and Remote must be on same local network
-   - Standard HTTP/HTTPS communication on configured port
-   - No additional firewall configuration required
+#### User Account:
+1. Create or use existing Jellyfin user account
+2. Ensure account has media library access
+3. Verify account can control media playback
+4. Note username and password for integration setup
+
+#### Network Requirements:
+- **Wired Connection** - Recommended for stability
+- **Static IP** - Recommended via DHCP reservation
+- **Firewall** - Allow HTTP/HTTPS traffic on Jellyfin port
+- **Network Isolation** - Must be on same subnet as Remote
 
 ### Step 2: Setup Integration
 
 1. After installation, go to **Settings** → **Integrations**
 2. The Jellyfin integration should appear in **Available Integrations**
-3. Click **"Configure"** and follow the setup wizard:
+3. Click **"Configure"** to begin setup:
 
-   **Server Connection:**
-   - **Server URL**: Your Jellyfin server URL (e.g., http://192.168.1.100:8096)
-   - **Username**: Your Jellyfin username
-   - **Password**: Your Jellyfin password
-   - **2FA**: Optional
+#### **Configuration:**
+- **Server URL** - Your Jellyfin server URL (e.g., http://192.168.1.100:8096)
+- **Username** - Your Jellyfin username
+- **Password** - Your Jellyfin password
+- **2FA** - Optional two-factor authentication
+- Click **Complete Setup**
 
-5. Click **"Complete Setup"** when connection is successful
-6. Media player entity will be created for each active session:
-   - **[Client Name]** (Media Player Entity)
+#### **Connection Test:**
+- Integration verifies server connectivity
+- Authenticates with provided credentials
+- Setup fails if server unreachable or credentials invalid
 
-### Step 3: Add Entities to Activities
+4. Integration will create entities:
+   - **[Client Name]** - Media player entity for each active session
+
+## Using the Integration
+
+### Media Player Entity
+
+The media player entity provides complete playback control:
+
+- **Playback Control** - Play/Pause, Stop, Previous, Next
+- **Navigation** - Fast Forward, Rewind (30-second skips)
+- **Media Information** - Title, series, episode details
+- **Artwork Display** - High-quality poster/thumbnail
+- **Progress Tracking** - Current position and duration
+- **State Monitoring** - Playing, paused, stopped indicators
+
+### Smart Metadata Display
+
+- **TV Shows** - Series name, S01E01 format, episode titles
+- **Movies** - Movie title, year, genre
+- **Music** - Artist, album, track information
+- **Enhanced Titles** - Intelligent metadata parsing
+
+### Adding to Activities
 
 1. Go to **Activities** in your remote interface
 2. Edit or create an activity
-3. Add Jellyfin entities from the **Available Entities** list:
-   - **Jellyfin Media Player** - Primary control interface
+3. Add Jellyfin entities from **Available Entities** list
 4. Configure button mappings and UI layout as desired
 5. Save your activity
 
-### Debug Information
-
-Enable detailed logging for troubleshooting:
-
-**Docker Environment:**
-```bash
-# Add to docker-compose.yml environment section
-- LOG_LEVEL=DEBUG
-
-# View logs
-docker logs uc-intg-jellyfin
-```
-
-**Integration Logs:**
-- **Remote Interface**: Settings → Integrations → Jellyfin → View Logs
-- **Common Errors**: Connection timeouts, authentication failures, session detection issues
-
-**Server Verification:**
-- **Web Interface**: Verify server accessible at `http://server-ip:8096`
-- **API Test**: Visit `http://server-ip:8096/health` for server status
-- **Session Check**: View active sessions in Jellyfin dashboard
-
-
-## For Developers
-
-### Local Development
-
-1. **Clone and setup:**
-   ```bash
-   git clone https://github.com/mase1981/uc-intg-jellyfin.git
-   cd uc-intg-jellyfin
-   python -m venv venv
-   source venv/bin/activate  # Windows: venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-
-2. **Configuration:**
-   Integration uses environment variables and config files:
-   ```bash
-   export UC_CONFIG_HOME=./config
-   # Config automatically created during setup
-   ```
-
-3. **Run development:**
-   ```bash
-   python uc_intg_jellyfin/driver.py
-   # Integration runs on localhost:9090
-   ```
-
-4. **VS Code debugging:**
-   - Open project in VS Code
-   - Use F5 to start debugging session
-   - Configure integration with real Jellyfin server
-
-### Project Structure
-
-```
-uc-intg-jellyfin/
-├── uc_intg_jellyfin/          # Main package
-│   ├── __init__.py             # Package info  
-│   ├── client.py               # Jellyfin API client
-│   ├── config.py               # Configuration management
-│   ├── driver.py               # Main integration driver
-│   └── media_player.py         # Media player entity
-├── .github/workflows/          # GitHub Actions CI/CD
-│   └── build.yml               # Automated build pipeline
-├── .git/hooks/                 # Git hooks for quality
-│   └── pre-push                # Version consistency checking
-├── docker-compose.yml          # Docker deployment
-├── Dockerfile                  # Container build instructions
-├── docker-entry.sh             # Container entry point
-├── driver.json                 # Integration metadata
-├── requirements.txt            # Dependencies
-├── pyproject.toml              # Python project config
-└── README.md                   # This file
-```
-
-### Development
-
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Run with real Jellyfin server
-python uc_intg_jellyfin/driver.py
-
-# Configure integration with Jellyfin server details
-# Start media playback on Jellyfin client for testing
-```
-
-### Development Features
-
-#### **Authentication System**
-Complete Jellyfin authentication using official client library:
-- **Official Library**: Uses jellyfin-apiclient-python for compatibility
-- **Secure Authentication**: Username/password authentication
-- **Session Management**: Persistent authentication across requests
-- **Token Handling**: Automatic access token management
-
-#### **Connection Monitoring**
-Production-ready health checks and reconnection:
-- **Health Endpoint**: Continuous server connectivity monitoring
-- **Automatic Reconnection**: Seamless recovery from network issues
-- **Graceful Degradation**: Proper handling of server unavailability
-- **State Management**: Maintains entity state across interruptions
-
-#### **Session Discovery**
-Intelligent Jellyfin session detection and management:
-- **Real-time Discovery**: Automatic detection of active sessions
-- **User Filtering**: Shows only sessions for authenticated user
-- **Deduplication**: Prevents duplicate entities for same client
-- **Dynamic Updates**: Refreshes session list automatically
-
-### Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Make your changes and test with real Jellyfin server
-4. Test with multiple Jellyfin clients if available
-5. Commit changes: git commit -m 'Add amazing feature'
-6. Push to branch: git push origin feature/amazing-feature
-7. Open a Pull Request
-
 ## Credits
 
-- **Developer**: Meir Miyara
-- **Naim Audio**: HTTP API specification and device support
-- **Unfolded Circle**: Remote 2/3 integration framework (ucapi)
-- **Community**: Testing and feedback from UC community
+- **Developer** - Meir Miyara
+- **Jellyfin** - Free Software Media System
+- **Unfolded Circle** - Remote 2/3 integration framework (ucapi)
+- **Community** - Testing and feedback from UC community
+
+## License
+
+This project is licensed under the Mozilla Public License 2.0 (MPL-2.0) - see LICENSE file for details.
 
 ## Support & Community
 
-- **GitHub Issues**: [Report bugs and request features](https://github.com/mase1981/uc-intg-naim/issues)
-- **UC Community Forum**: [General discussion and support](https://unfolded.community/)
-- **Developer**: [Meir Miyara](https://www.linkedin.com/in/meirmiyara)
+- **GitHub Issues** - [Report bugs and request features](https://github.com/mase1981/uc-intg-jellyfin/issues)
+- **UC Community Forum** - [General discussion and support](https://unfolded.community/)
+- **Developer** - [Meir Miyara](https://www.linkedin.com/in/meirmiyara)
 
 ---
 
-**Made with ❤️ for the Unfolded Circle Community** 
+**Made with ❤️ for the Unfolded Circle Community**
 
-**Thank You**: Meir Miyara
+**Thank You** - Meir Miyara
