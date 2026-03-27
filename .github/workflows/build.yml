@@ -54,7 +54,7 @@ jobs:
               pyinstaller --clean --onedir --name intg-${DRIVER_ID} \
                 --add-data driver.json:. \
                 --collect-all zeroconf \
-                uc_intg_jellyfin"
+                uc_intg_jellyfin/__main__.py"
 
       - name: Prepare artifacts
         shell: bash
