@@ -1,105 +1,72 @@
 """
-Configuration Management for Jellyfin Integration.
+Configuration for Jellyfin integration.
 
-:copyright: (c) 2025 by Meir Miyara.
-:license: MIT, see LICENSE for more details.
+:copyright: (c) 2025-2026 by Meir Miyara.
+:license: MPL-2.0, see LICENSE for more details.
 """
 
-import json
-import logging
-import os
-from typing import Any, Dict, Optional
+from __future__ import annotations
 
-_LOG = logging.getLogger(__name__)
+import hashlib
+from dataclasses import dataclass, field
 
-class Config:
-    """Configuration management for Jellyfin integration."""
 
-    def __init__(self, config_dir: str = None):
-        """Initialize configuration manager."""
-        if config_dir is None:
-            config_dir = os.getenv("UC_CONFIG_HOME", ".")
-        
-        self.config_dir = config_dir
-        self.config_file = os.path.join(config_dir, "config.json")
-        self._data: Dict[str, Any] = {}
-        
-        # Ensure config directory exists
-        os.makedirs(config_dir, exist_ok=True)
+def make_device_id(jellyfin_device_id: str) -> str:
+    return f"jf_{hashlib.md5(jellyfin_device_id.encode()).hexdigest()[:12]}"
 
-    def load(self):
-        """Load configuration from file."""
-        try:
-            if os.path.exists(self.config_file):
-                with open(self.config_file, 'r', encoding='utf-8') as f:
-                    self._data = json.load(f)
-                _LOG.info("Configuration loaded from %s", self.config_file)
+
+@dataclass
+class JellyfinDeviceConfig:
+    """Configuration for a single Jellyfin client device."""
+
+    device_id: str
+    jellyfin_device_id: str
+    name: str
+
+
+@dataclass
+class JellyfinConfig:
+    """Configuration for a Jellyfin server connection."""
+
+    identifier: str
+    name: str
+    host: str
+    username: str
+    password: str
+    user_id: str = ""
+    server_id: str = ""
+    devices: list[JellyfinDeviceConfig] = field(default_factory=list)
+
+    def __post_init__(self):
+        converted = []
+        for device in self.devices:
+            if isinstance(device, dict):
+                converted.append(JellyfinDeviceConfig(**device))
             else:
-                _LOG.info("No configuration file found, using defaults")
-                self._data = {}
-        except Exception as e:
-            _LOG.error("Failed to load configuration: %s", e)
-            self._data = {}
+                converted.append(device)
+        self.devices = converted
 
-    def save(self):
-        """Save configuration to file."""
-        try:
-            with open(self.config_file, 'w', encoding='utf-8') as f:
-                json.dump(self._data, f, indent=2)
-            _LOG.info("Configuration saved to %s", self.config_file)
-        except Exception as e:
-            _LOG.error("Failed to save configuration: %s", e)
+    def add_device(self, jellyfin_device_id: str, name: str) -> str:
+        device_id = make_device_id(jellyfin_device_id)
+        for existing in self.devices:
+            if existing.jellyfin_device_id == jellyfin_device_id:
+                existing.name = name
+                return device_id
+        self.devices.append(JellyfinDeviceConfig(
+            device_id=device_id,
+            jellyfin_device_id=jellyfin_device_id,
+            name=name,
+        ))
+        return device_id
 
-    def get(self, key: str, default: Any = None) -> Any:
-        """Get configuration value."""
-        return self._data.get(key, default)
+    def get_device(self, device_id: str) -> JellyfinDeviceConfig | None:
+        for device in self.devices:
+            if device.device_id == device_id:
+                return device
+        return None
 
-    def set(self, key: str, value: Any):
-        """Set configuration value."""
-        self._data[key] = value
-
-    def is_configured(self) -> bool:
-        """Check if integration is properly configured."""
-        required_fields = ["host", "username", "password"]
-        return all(self.get(field) for field in required_fields)
-
-    def get_host(self) -> Optional[str]:
-        """Get Jellyfin server host/URL."""
-        return self.get("host")
-
-    def get_username(self) -> Optional[str]:
-        """Get Jellyfin username."""
-        return self.get("username")
-
-    def get_password(self) -> Optional[str]:
-        """Get Jellyfin password."""
-        return self.get("password")
-
-    def get_server_id(self) -> Optional[str]:
-        """Get Jellyfin server ID."""
-        return self.get("server_id")
-
-    def get_user_id(self) -> Optional[str]:
-        """Get Jellyfin user ID."""
-        return self.get("user_id")
-
-    def set_server_info(self, server_info: Dict[str, Any]):
-        """Store server information."""
-        self.set("server_info", server_info)
-        if "Id" in server_info:
-            self.set("server_id", server_info["Id"])
-
-    def set_user_info(self, user_id: str):
-        """Store user information."""
-        self.set("user_id", user_id)
-
-    def clear(self):
-        """Clear all configuration."""
-        self._data = {}
-        if os.path.exists(self.config_file):
-            os.remove(self.config_file)
-        _LOG.info("Configuration cleared")
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Return configuration as dictionary."""
-        return self._data.copy()
+    def find_by_jellyfin_id(self, jellyfin_device_id: str) -> JellyfinDeviceConfig | None:
+        for device in self.devices:
+            if device.jellyfin_device_id == jellyfin_device_id:
+                return device
+        return None
