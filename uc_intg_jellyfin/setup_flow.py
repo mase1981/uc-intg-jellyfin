@@ -104,17 +104,24 @@ class JellyfinSetupFlow(BaseSetupFlow[JellyfinConfig]):
             if "AccessToken" not in auth_result:
                 raise ValueError("Authentication failed - check credentials")
 
-            user_settings = client.jellyfin.get_user_settings()
-            user_id = user_settings["Id"]
+            user_id = auth_result.get("User", {}).get("Id", "")
+            if not user_id:
+                raise ValueError("Could not determine user ID from login")
+            _LOG.info("Authenticated user_id=%s", user_id)
 
-            server_info = {}
+            server_id = "unknown"
+            server_name = "Jellyfin"
             try:
                 server_info = client.jellyfin.get_system_info()
+                server_id = server_info.get("Id", "unknown")
+                server_name = server_info.get("ServerName", "Jellyfin")
             except Exception:
-                _LOG.warning("Could not get server info during setup")
-
-            server_id = server_info.get("Id", "unknown")
-            server_name = server_info.get("ServerName", "Jellyfin")
+                try:
+                    pub_info = client.jellyfin.get_public_info()
+                    server_id = pub_info.get("Id", "unknown")
+                    server_name = pub_info.get("ServerName", "Jellyfin")
+                except Exception:
+                    _LOG.warning("Could not get server info during setup")
 
             config_id = f"jellyfin_{server_id[:12]}".lower()
 
@@ -130,6 +137,14 @@ class JellyfinSetupFlow(BaseSetupFlow[JellyfinConfig]):
 
             try:
                 all_sessions = client.jellyfin.sessions()
+                _LOG.info("Total sessions returned: %d", len(all_sessions or []))
+                for s in (all_sessions or []):
+                    _LOG.debug(
+                        "Session: DeviceId=%s, Client=%s, DeviceName=%s, UserId=%s, NowPlaying=%s",
+                        s.get("DeviceId"), s.get("Client"), s.get("DeviceName"),
+                        s.get("UserId"), bool(s.get("NowPlayingItem")),
+                    )
+
                 user_sessions = [
                     s for s in (all_sessions or [])
                     if s.get("UserId") == user_id

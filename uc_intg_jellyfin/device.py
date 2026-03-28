@@ -110,15 +110,21 @@ class JellyfinDevice(ExternalClientDevice):
                 if "AccessToken" not in auth_result:
                     raise ConnectionError("Authentication failed - check credentials")
 
-                user_settings = self._client.jellyfin.get_user_settings()
-                self._user_id = user_settings["Id"]
+                self._user_id = auth_result.get("User", {}).get("Id", "")
+                if not self._user_id:
+                    raise ConnectionError("Could not determine user ID from login")
+                _LOG.info("Authenticated user_id=%s", self._user_id)
 
                 try:
                     server_info = self._client.jellyfin.get_system_info()
                     self._server_id = server_info.get("Id", "")
                     _LOG.info("Connected to Jellyfin: %s", server_info.get("ServerName", "Unknown"))
                 except Exception:
-                    _LOG.warning("Could not get server info")
+                    try:
+                        pub_info = self._client.jellyfin.get_public_info()
+                        self._server_id = pub_info.get("Id", "")
+                    except Exception:
+                        _LOG.warning("Could not get server info")
 
                 await self._poll_sessions()
                 self._start_polling()
