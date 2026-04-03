@@ -217,6 +217,8 @@ class JellyfinMediaPlayer(MediaPlayer):
         if not self._api or not self._api.configured_entities.contains(self.id):
             return
 
+        self._jellyfin_device.ensure_polling()
+
         device_state = self._jellyfin_device.get_device_state(self._device_id)
         state = device_state.get("state", "idle")
 

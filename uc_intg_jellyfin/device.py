@@ -50,6 +50,7 @@ class JellyfinDevice(ExternalClientDevice):
         self._server_id: str = device_config.server_id or ""
         self._sessions: dict[str, dict[str, Any]] = {}
         self._poll_task: asyncio.Task | None = None
+        self._authenticated: bool = False
 
         _LOG.info("JellyfinDevice initialized: host=%s", device_config.host)
 
@@ -126,6 +127,8 @@ class JellyfinDevice(ExternalClientDevice):
                     except Exception:
                         _LOG.warning("Could not get server info")
 
+                self._authenticated = True
+                _LOG.info("[%s] Authentication successful, starting session polling", self.log_id)
                 await self._poll_sessions()
                 self._start_polling()
                 return
@@ -145,6 +148,7 @@ class JellyfinDevice(ExternalClientDevice):
     async def disconnect_client(self) -> None:
         self._stop_polling()
         self._sessions.clear()
+        self._authenticated = False
         try:
             if hasattr(self._client, "stop"):
                 self._client.stop()
@@ -152,20 +156,28 @@ class JellyfinDevice(ExternalClientDevice):
             _LOG.debug("Error disconnecting: %s", err)
 
     def check_client_connected(self) -> bool:
+        if not self._authenticated:
+            return False
         try:
             info = self._client.jellyfin.get_system_info()
             return info is not None
         except Exception:
+            self._authenticated = False
             return False
 
     def _start_polling(self) -> None:
         if self._poll_task is None or self._poll_task.done():
+            _LOG.debug("[%s] Starting session polling task", self.log_id)
             self._poll_task = asyncio.create_task(self._poll_loop())
 
     def _stop_polling(self) -> None:
         if self._poll_task and not self._poll_task.done():
             self._poll_task.cancel()
             self._poll_task = None
+
+    def ensure_polling(self) -> None:
+        if self._authenticated:
+            self._start_polling()
 
     async def _poll_loop(self) -> None:
         while True:
@@ -179,9 +191,14 @@ class JellyfinDevice(ExternalClientDevice):
                 await asyncio.sleep(POLL_INTERVAL)
 
     async def _poll_sessions(self) -> None:
+        if not self._authenticated:
+            _LOG.debug("[%s] Skipping session poll - not authenticated", self.log_id)
+            return
+
         try:
             all_sessions = self._client.jellyfin.sessions()
             if not all_sessions:
+                _LOG.debug("[%s] No sessions returned from server", self.log_id)
                 return
 
             user_sessions = [
@@ -208,6 +225,10 @@ class JellyfinDevice(ExternalClientDevice):
                 new_state = self._extract_state(self._sessions.get(jf_device_id))
 
                 if old_state != new_state:
+                    _LOG.info(
+                        "[%s] State change for %s: %s -> %s",
+                        self.log_id, dev_cfg.device_id, old_state, new_state,
+                    )
                     uc_state = self._map_uc_state(new_state)
                     self.events.emit(DeviceEvents.UPDATE, dev_cfg.device_id, {"state": uc_state})
 
