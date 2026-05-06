@@ -11,7 +11,7 @@ import asyncio
 import logging
 from typing import Any
 
-from ucapi import DeviceStates, Events
+from ucapi import DeviceStates
 from ucapi_framework import BaseIntegrationDriver
 from ucapi_framework.device import DeviceEvents
 
@@ -41,21 +41,23 @@ class JellyfinDriver(BaseIntegrationDriver[JellyfinDevice, JellyfinConfig]):
         self._retry_task: asyncio.Task | None = None
         self._device_to_config: dict[str, str] = {}
 
-        self.api.add_listener(Events.SUBSCRIBE_ENTITIES, self._on_subscribe_entities)
-
     def device_from_entity_id(self, entity_id: str) -> str | None:
         if not entity_id:
             return None
         device_id = entity_id
+        if device_id.startswith("media_player."):
+            device_id = device_id[len("media_player."):]
         for suffix in _ENTITY_SUFFIXES:
-            if entity_id.endswith(suffix):
-                device_id = entity_id[: -len(suffix)]
+            if device_id.endswith(suffix):
+                device_id = device_id[: -len(suffix)]
                 break
         return self._device_to_config.get(device_id)
 
     def entity_type_from_entity_id(self, entity_id: str) -> str | None:
         if not entity_id:
             return None
+        if entity_id.startswith("media_player."):
+            return "media_player"
         if entity_id.endswith("_remote"):
             return "remote"
         if entity_id.endswith(("_state", "_now_playing")):
@@ -73,37 +75,38 @@ class JellyfinDriver(BaseIntegrationDriver[JellyfinDevice, JellyfinConfig]):
             device_config.identifier, len(device_config.devices),
         )
 
-        device.events.on(DeviceEvents.UPDATE, self._on_device_state_change)
-
         for dev_cfg in device_config.devices:
-            self._register_device_entities(dev_cfg.device_id, dev_cfg.name, device, device_config)
+            self._register_device_entities(dev_cfg, device, device_config)
 
     def _register_device_entities(
-        self, device_id: str, device_name: str, device: JellyfinDevice, config: JellyfinConfig
+        self, dev_cfg: Any, device: JellyfinDevice, config: JellyfinConfig
     ) -> None:
+        device_id = dev_cfg.device_id
         if device_id in self._media_players:
             return
 
         self._device_to_config[device_id] = config.identifier
 
         sensors = [
-            JellyfinStateSensor(device_id, device_name, device, self.api),
-            JellyfinNowPlayingSensor(device_id, device_name, device, self.api),
+            JellyfinStateSensor(device_id, dev_cfg.name, device, self.api),
+            JellyfinNowPlayingSensor(device_id, dev_cfg.name, device, self.api),
         ]
         self._sensors[device_id] = sensors
 
-        mp = JellyfinMediaPlayer(device_id, device_name, device, self.api, sensors)
+        mp = JellyfinMediaPlayer(dev_cfg, device)
+        mp._api = self.api
+        mp.set_sensors(sensors)
         self._media_players[device_id] = mp
         self.api.available_entities.add(mp)
 
-        remote = JellyfinRemote(device_id, device_name, device, self.api, mp)
+        remote = JellyfinRemote(device_id, dev_cfg.name, device, self.api, mp)
         self._remotes[device_id] = remote
         self.api.available_entities.add(remote)
 
         for sensor in sensors:
             self.api.available_entities.add(sensor)
 
-        _LOG.info("Created entities for device: %s (%s)", device_name, device_id)
+        _LOG.info("Created entities for device: %s (%s)", dev_cfg.name, device_id)
 
     def on_device_removed(self, device_or_config: JellyfinDevice | JellyfinConfig | None) -> None:
         if device_or_config is None:
@@ -133,14 +136,6 @@ class JellyfinDriver(BaseIntegrationDriver[JellyfinDevice, JellyfinConfig]):
                 for sensor in self._sensors.pop(device_id):
                     self.api.available_entities.remove(sensor.id)
 
-    async def _on_subscribe_entities(self, entity_ids: list[str]) -> None:
-        for entity_id in entity_ids:
-            entity = self._find_entity(entity_id)
-            if entity:
-                self.api.configured_entities.add(entity)
-                if hasattr(entity, "push_update"):
-                    await entity.push_update()
-
     def _find_entity(self, entity_id: str) -> Any | None:
         for store in (self._media_players, self._remotes):
             for entity in store.values():
@@ -153,17 +148,6 @@ class JellyfinDriver(BaseIntegrationDriver[JellyfinDevice, JellyfinConfig]):
                     return sensor
 
         return None
-
-    async def _on_device_state_change(self, device_id: str, state: dict[str, Any]) -> None:
-        if device_id in self._media_players:
-            mp = self._media_players[device_id]
-            if self.api.configured_entities.contains(mp.id):
-                await mp.push_update()
-
-        if device_id in self._remotes:
-            remote = self._remotes[device_id]
-            if self.api.configured_entities.contains(remote.id):
-                await remote.push_update()
 
     async def connect_devices(self) -> bool:
         if not self.config_manager:
@@ -212,7 +196,9 @@ class JellyfinDriver(BaseIntegrationDriver[JellyfinDevice, JellyfinConfig]):
             new_device_id = config.add_device(jf_device_id, name)
             self.config_manager.update(config)
 
-            self._register_device_entities(new_device_id, name, device, config)
+            dev_cfg = config.get_device(new_device_id)
+            if dev_cfg:
+                self._register_device_entities(dev_cfg, device, config)
             _LOG.info("Dynamically added device: %s (%s)", name, new_device_id)
 
     def _start_retry_task(self) -> None:
