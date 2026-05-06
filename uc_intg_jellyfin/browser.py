@@ -11,12 +11,12 @@ import logging
 from typing import TYPE_CHECKING
 
 from ucapi import StatusCodes
-from ucapi.api_definitions import (
+from ucapi.api_definitions import Pagination
+from ucapi.media_player import (
     BrowseMediaItem,
     BrowseOptions,
     BrowseResults,
     MediaClass,
-    Pagination,
     SearchOptions,
     SearchResults,
 )
@@ -98,7 +98,7 @@ async def search(
             media_id=f"item_{item['Id']}" if can_play else item["Id"],
             can_play=can_play,
             can_browse=can_browse,
-            image_url=image,
+            thumbnail=image,
         ))
 
     return SearchResults(
@@ -119,7 +119,7 @@ def _browse_root(device: JellyfinDevice) -> BrowseResults:
             media_id=lib["Id"],
             can_browse=True,
             can_play=False,
-            image_url=image,
+            thumbnail=image,
         ))
 
     return BrowseResults(
@@ -203,7 +203,7 @@ def _items_to_browse_items(device: JellyfinDevice, items: list[dict]) -> list[Br
             media_id=f"item_{item['Id']}" if can_play else item["Id"],
             can_play=can_play,
             can_browse=can_browse,
-            image_url=image,
+            thumbnail=image,
         ))
     return result
 

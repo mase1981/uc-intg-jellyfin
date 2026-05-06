@@ -9,12 +9,22 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 from typing import Any, TYPE_CHECKING
 
 from ucapi import MediaPlayer, StatusCodes
-from ucapi.media_player import Attributes, Commands, DeviceClasses, Features, RepeatMode, States
-from ucapi.api_definitions import BrowseOptions, BrowseResults, SearchOptions, SearchResults
+from ucapi.media_player import (
+    Attributes,
+    BrowseOptions,
+    BrowseResults,
+    Commands,
+    DeviceClasses,
+    Features,
+    MediaContentType,
+    RepeatMode,
+    SearchOptions,
+    SearchResults,
+    States,
+)
 
 from uc_intg_jellyfin import browser
 from uc_intg_jellyfin.const import FF_RW_SECONDS, PERIODIC_REFRESH_INTERVAL
@@ -40,6 +50,7 @@ FEATURES = [
     Features.MEDIA_ARTIST,
     Features.MEDIA_ALBUM,
     Features.MEDIA_IMAGE_URL,
+    Features.MEDIA_TYPE,
     Features.MEDIA_POSITION,
     Features.MEDIA_DURATION,
     Features.REPEAT,
@@ -48,6 +59,15 @@ FEATURES = [
     Features.BROWSE_MEDIA,
     Features.SEARCH_MEDIA,
 ]
+
+_JELLYFIN_TYPE_TO_CONTENT_TYPE = {
+    "Movie": MediaContentType.MOVIE,
+    "Episode": MediaContentType.EPISODE,
+    "Audio": MediaContentType.MUSIC,
+    "MusicVideo": MediaContentType.VIDEO,
+    "Video": MediaContentType.VIDEO,
+    "TvChannel": MediaContentType.CHANNEL,
+}
 
 
 class JellyfinMediaPlayer(MediaPlayer):
@@ -64,6 +84,7 @@ class JellyfinMediaPlayer(MediaPlayer):
         self._jellyfin_device = jellyfin_device
         self._api = api
         self._sensors = sensors or []
+        self._last_media_item_id: str = ""
 
         attributes = {
             Attributes.STATE: States.UNAVAILABLE,
@@ -71,6 +92,7 @@ class JellyfinMediaPlayer(MediaPlayer):
             Attributes.MEDIA_ARTIST: "",
             Attributes.MEDIA_ALBUM: "",
             Attributes.MEDIA_IMAGE_URL: "",
+            Attributes.MEDIA_TYPE: "",
             Attributes.MEDIA_POSITION: 0,
             Attributes.MEDIA_DURATION: 0,
             Attributes.VOLUME: 100,
@@ -206,13 +228,6 @@ class JellyfinMediaPlayer(MediaPlayer):
         _LOG.warning("[%s] Unknown media_id: %s", self.id, media_id)
         return StatusCodes.BAD_REQUEST
 
-    @staticmethod
-    def _make_unique_image_url(base_url: str) -> str:
-        if not base_url:
-            return base_url
-        sep = "&" if "?" in base_url else "?"
-        return f"{base_url}{sep}_t={int(time.time() * 1000)}"
-
     async def push_update(self) -> None:
         if not self._api or not self._api.configured_entities.contains(self.id):
             return
@@ -240,6 +255,11 @@ class JellyfinMediaPlayer(MediaPlayer):
         self.attributes[Attributes.MUTED] = device_state.get("muted", False)
         self.attributes[Attributes.SHUFFLE] = device_state.get("shuffle", False)
 
+        jellyfin_type = device_state.get("media_item_type", "")
+        self.attributes[Attributes.MEDIA_TYPE] = _JELLYFIN_TYPE_TO_CONTENT_TYPE.get(
+            jellyfin_type, MediaContentType.VIDEO if jellyfin_type else ""
+        )
+
         repeat_mode = device_state.get("repeat", "RepeatNone")
         if repeat_mode == "RepeatOne":
             self.attributes[Attributes.REPEAT] = RepeatMode.ONE
@@ -248,11 +268,15 @@ class JellyfinMediaPlayer(MediaPlayer):
         else:
             self.attributes[Attributes.REPEAT] = RepeatMode.OFF
 
+        current_item_id = device_state.get("media_item_id", "")
         image = device_state.get("media_image", "")
         if image:
-            self.attributes[Attributes.MEDIA_IMAGE_URL] = self._make_unique_image_url(image)
+            if current_item_id != self._last_media_item_id:
+                self._last_media_item_id = current_item_id
+            self.attributes[Attributes.MEDIA_IMAGE_URL] = image
         else:
             self.attributes[Attributes.MEDIA_IMAGE_URL] = ""
+            self._last_media_item_id = ""
 
         self._api.configured_entities.update_attributes(self.id, self.attributes)
 

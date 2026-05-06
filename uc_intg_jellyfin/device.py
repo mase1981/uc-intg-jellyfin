@@ -284,6 +284,8 @@ class JellyfinDevice(ExternalClientDevice):
         }
 
         if now_playing:
+            result["media_item_type"] = now_playing.get("Type", "")
+            result["media_item_id"] = now_playing.get("Id", "")
             result["media_title"] = now_playing.get("Name", "")
 
             if now_playing.get("Type") == "Episode":
