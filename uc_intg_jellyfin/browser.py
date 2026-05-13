@@ -87,7 +87,7 @@ async def search(
         can_browse = item_type in _BROWSABLE_TYPES
 
         browse_type = _get_browse_type(item_type)
-        image = device.get_artwork_url(item, max_width=300) or ""
+        image = device.get_artwork_url(item, max_width=300) or None
 
         title = _format_title(item)
 
@@ -111,7 +111,7 @@ def _browse_root(device: JellyfinDevice) -> BrowseResults:
     libraries = device.get_libraries()
     lib_items = []
     for lib in libraries:
-        image = device.get_artwork_url(lib, max_width=300) or ""
+        image = device.get_artwork_url(lib, max_width=300) or None
         lib_items.append(BrowseMediaItem(
             title=lib.get("Name", "Library"),
             media_class=MediaClass.DIRECTORY,
@@ -193,7 +193,7 @@ def _items_to_browse_items(device: JellyfinDevice, items: list[dict]) -> list[Br
         can_browse = item_type in _BROWSABLE_TYPES
 
         browse_type = _get_browse_type(item_type)
-        image = device.get_artwork_url(item, max_width=300) or ""
+        image = device.get_artwork_url(item, max_width=300) or None
         title = _format_title(item)
 
         result.append(BrowseMediaItem(

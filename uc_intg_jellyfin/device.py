@@ -128,6 +128,7 @@ class JellyfinDevice(ExternalClientDevice):
                         _LOG.warning("Could not get server info")
 
                 self._authenticated = True
+                self._state = "ON"
                 _LOG.info("[%s] Authentication successful, starting session polling", self.log_id)
                 await self._poll_sessions()
                 self._start_polling()
@@ -149,6 +150,7 @@ class JellyfinDevice(ExternalClientDevice):
         self._stop_polling()
         self._sessions.clear()
         self._authenticated = False
+        self._state = None
         try:
             if hasattr(self._client, "stop"):
                 self._client.stop()
