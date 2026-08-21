@@ -188,7 +188,11 @@ class JellyfinMediaPlayer(MediaPlayerEntity):
 
         try:
             if cmd_id == Commands.PLAY_PAUSE:
-                await self._device.play_pause(self._device_id)
+                state = self._device.get_device_state(self._device_id).get("state")
+                if state == "playing":
+                    await self._device.pause(self._device_id)
+                else:
+                    await self._device.play(self._device_id)
 
             elif cmd_id == Commands.STOP:
                 await self._device.stop(self._device_id)
@@ -210,7 +214,11 @@ class JellyfinMediaPlayer(MediaPlayerEntity):
                 await self._device.volume_down(self._device_id)
 
             elif cmd_id == Commands.MUTE_TOGGLE:
-                await self._device.mute_toggle(self._device_id)
+                muted = self._device.get_device_state(self._device_id).get("muted", False)
+                if muted:
+                    await self._device.unmute(self._device_id)
+                else:
+                    await self._device.mute(self._device_id)
 
             elif cmd_id == Commands.SEEK:
                 if params and "media_position" in params:

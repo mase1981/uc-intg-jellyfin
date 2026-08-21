@@ -158,7 +158,11 @@ class JellyfinRemote(Remote):
 
     async def _dispatch_command(self, command: str) -> None:
         if command == "PLAYPAUSE":
-            await self._jellyfin_device.play_pause(self._device_id)
+            state = self._jellyfin_device.get_device_state(self._device_id).get("state")
+            if state == "playing":
+                await self._jellyfin_device.pause(self._device_id)
+            else:
+                await self._jellyfin_device.play(self._device_id)
             return
         if command == "STOP":
             await self._jellyfin_device.stop(self._device_id)
@@ -176,7 +180,11 @@ class JellyfinRemote(Remote):
             await self._jellyfin_device.volume_down(self._device_id)
             return
         if command == "MUTE":
-            await self._jellyfin_device.mute_toggle(self._device_id)
+            muted = self._jellyfin_device.get_device_state(self._device_id).get("muted", False)
+            if muted:
+                await self._jellyfin_device.unmute(self._device_id)
+            else:
+                await self._jellyfin_device.mute(self._device_id)
             return
 
         if command in ("0", "1", "2", "3", "4", "5", "6", "7", "8", "9"):

@@ -361,10 +361,21 @@ class JellyfinDevice(ExternalClientDevice):
             return False
 
     async def next_track(self, device_id: str) -> bool:
-        return await self.send_command(device_id, "NextTrack")
+        return await self._remote_playstate(device_id, "NextTrack")
 
     async def previous_track(self, device_id: str) -> bool:
-        return await self.send_command(device_id, "PreviousTrack")
+        return await self._remote_playstate(device_id, "PreviousTrack")
+
+    async def _remote_playstate(self, device_id: str, command: str) -> bool:
+        session_id = self._get_session_id(device_id)
+        if not session_id:
+            return False
+        try:
+            self._client.jellyfin.remote(session_id, command)
+            return True
+        except Exception as err:
+            _LOG.error("Playstate command '%s' failed: %s", command, err)
+            return False
 
     async def seek(self, device_id: str, position_seconds: int) -> bool:
         session_id = self._get_session_id(device_id)
@@ -395,8 +406,27 @@ class JellyfinDevice(ExternalClientDevice):
     async def volume_down(self, device_id: str) -> bool:
         return await self.send_command(device_id, "VolumeDown")
 
-    async def mute_toggle(self, device_id: str) -> bool:
-        return await self.send_command(device_id, "ToggleMute")
+    async def mute(self, device_id: str) -> bool:
+        session_id = self._get_session_id(device_id)
+        if not session_id:
+            return False
+        try:
+            self._client.jellyfin.remote_mute(session_id)
+            return True
+        except Exception as err:
+            _LOG.error("Mute failed: %s", err)
+            return False
+
+    async def unmute(self, device_id: str) -> bool:
+        session_id = self._get_session_id(device_id)
+        if not session_id:
+            return False
+        try:
+            self._client.jellyfin.remote_unmute(session_id)
+            return True
+        except Exception as err:
+            _LOG.error("Unmute failed: %s", err)
+            return False
 
     async def send_command(self, device_id: str, command: str) -> bool:
         session_id = self._get_session_id(device_id)
