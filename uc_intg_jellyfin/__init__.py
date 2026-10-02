@@ -65,7 +65,7 @@ async def main() -> None:
     setup_handler = JellyfinSetupFlow.create_handler(driver)
     await driver.api.init(_DRIVER_JSON, setup_handler)
 
-    await driver.register_all_configured_devices(connect=False)
+    await driver.register_all_device_instances(connect=False)
 
     configs = list(config_manager.all())
     if configs:

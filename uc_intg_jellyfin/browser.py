@@ -7,6 +7,7 @@ Media browser for Jellyfin integration.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import TYPE_CHECKING
 
@@ -52,20 +53,20 @@ async def browse(
     media_id = options.media_id or ""
 
     if media_type == "root" or (options.media_id is None and options.media_type is None):
-        return _browse_root(device)
+        return await asyncio.to_thread(_browse_root, device)
 
     if media_type == "libraries":
-        return _browse_libraries(device)
+        return await asyncio.to_thread(_browse_libraries, device)
 
     if media_type == "library" and media_id:
         paging = options.paging
         page = int((paging.page if paging and paging.page else None) or 1)
-        return _browse_library(device, media_id, page)
+        return await asyncio.to_thread(_browse_library, device, media_id, page)
 
     if media_type in ("series", "season", "artist", "album", "folder") and media_id:
         paging = options.paging
         page = int((paging.page if paging and paging.page else None) or 1)
-        return _browse_container(device, media_id, page)
+        return await asyncio.to_thread(_browse_container, device, media_id, page)
 
     return StatusCodes.NOT_FOUND
 
@@ -77,7 +78,7 @@ async def search(
     if not query:
         return SearchResults(media=[], pagination=Pagination(page=1, limit=0, count=0))
 
-    results = device.search_items(query, limit=PAGE_SIZE)
+    results = await asyncio.to_thread(device.search_items, query, PAGE_SIZE)
 
     items = []
     for item in results:

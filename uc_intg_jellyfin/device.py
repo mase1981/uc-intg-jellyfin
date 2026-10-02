@@ -20,6 +20,7 @@ from uc_intg_jellyfin.config import JellyfinConfig
 from uc_intg_jellyfin.const import (
     CONNECT_RETRIES,
     CONNECT_RETRY_DELAY,
+    MAX_POLL_FAILURES,
     POLL_INTERVAL,
     RECONNECT_DELAY,
     TICKS_PER_SECOND,
@@ -51,6 +52,7 @@ class JellyfinDevice(ExternalClientDevice):
         self._sessions: dict[str, dict[str, Any]] = {}
         self._poll_task: asyncio.Task | None = None
         self._authenticated: bool = False
+        self._poll_failures: int = 0
 
         _LOG.info("JellyfinDevice initialized: host=%s", device_config.host)
 
@@ -97,16 +99,13 @@ class JellyfinDevice(ExternalClientDevice):
             try:
                 self._client.config.data["auth.ssl"] = host.startswith("https")
 
-                connect_result = self._client.auth.connect_to_address(host)
+                connect_result = await asyncio.to_thread(self._client.auth.connect_to_address, host)
                 if CONNECTION_STATE(connect_result["State"]) != CONNECTION_STATE.ServerSignIn:
                     raise ConnectionError(f"Cannot reach server at {host}")
 
-                otp = self._device_config.password if len(self._device_config.password) == 6 else None
-                password = self._device_config.password if not otp else ""
-
-                auth_result = self._client.auth.login(
-                    host, self._device_config.username, password,
-                    **({"otp": otp} if otp else {}),
+                auth_result = await asyncio.to_thread(
+                    self._client.auth.login,
+                    host, self._device_config.username, self._device_config.password or "",
                 )
                 if "AccessToken" not in auth_result:
                     raise ConnectionError("Authentication failed - check credentials")
@@ -117,17 +116,18 @@ class JellyfinDevice(ExternalClientDevice):
                 _LOG.info("Authenticated user_id=%s", self._user_id)
 
                 try:
-                    server_info = self._client.jellyfin.get_system_info()
+                    server_info = await asyncio.to_thread(self._client.jellyfin.get_system_info)
                     self._server_id = server_info.get("Id", "")
                     _LOG.info("Connected to Jellyfin: %s", server_info.get("ServerName", "Unknown"))
                 except Exception:
                     try:
-                        pub_info = self._client.jellyfin.get_public_info()
+                        pub_info = await asyncio.to_thread(self._client.jellyfin.get_public_info)
                         self._server_id = pub_info.get("Id", "")
                     except Exception:
                         _LOG.warning("Could not get server info")
 
                 self._authenticated = True
+                self._poll_failures = 0
                 self._state = "ON"
                 _LOG.info("[%s] Authentication successful, starting session polling", self.log_id)
                 await self._poll_sessions()
@@ -158,14 +158,14 @@ class JellyfinDevice(ExternalClientDevice):
             _LOG.debug("Error disconnecting: %s", err)
 
     def check_client_connected(self) -> bool:
+        # Called synchronously by the framework watchdog: must not do network I/O
+        # on the event loop. Health is tracked by the session poll instead.
         if not self._authenticated:
             return False
-        try:
-            info = self._client.jellyfin.get_system_info()
-            return info is not None
-        except Exception:
+        if self._poll_failures >= MAX_POLL_FAILURES:
             self._authenticated = False
             return False
+        return True
 
     def _start_polling(self) -> None:
         if self._poll_task is None or self._poll_task.done():
@@ -198,7 +198,8 @@ class JellyfinDevice(ExternalClientDevice):
             return
 
         try:
-            all_sessions = self._client.jellyfin.sessions()
+            all_sessions = await asyncio.to_thread(self._client.jellyfin.sessions)
+            self._poll_failures = 0
             if not all_sessions:
                 _LOG.debug("[%s] No sessions returned from server", self.log_id)
                 return
@@ -235,6 +236,7 @@ class JellyfinDevice(ExternalClientDevice):
                     self.events.emit(DeviceEvents.UPDATE, dev_cfg.device_id, {"state": uc_state})
 
         except Exception as err:
+            self._poll_failures += 1
             _LOG.error("Failed to poll sessions: %s", err)
 
     def _extract_state(self, session: dict[str, Any] | None) -> str:
@@ -321,7 +323,7 @@ class JellyfinDevice(ExternalClientDevice):
         if not session_id:
             return False
         try:
-            self._client.jellyfin.remote_unpause(session_id)
+            await asyncio.to_thread(self._client.jellyfin.remote_unpause, session_id)
             return True
         except Exception as err:
             _LOG.error("Play failed: %s", err)
@@ -332,7 +334,7 @@ class JellyfinDevice(ExternalClientDevice):
         if not session_id:
             return False
         try:
-            self._client.jellyfin.remote_pause(session_id)
+            await asyncio.to_thread(self._client.jellyfin.remote_pause, session_id)
             return True
         except Exception as err:
             _LOG.error("Pause failed: %s", err)
@@ -343,7 +345,7 @@ class JellyfinDevice(ExternalClientDevice):
         if not session_id:
             return False
         try:
-            self._client.jellyfin.remote_playpause(session_id)
+            await asyncio.to_thread(self._client.jellyfin.remote_playpause, session_id)
             return True
         except Exception as err:
             _LOG.error("Play/pause failed: %s", err)
@@ -354,7 +356,7 @@ class JellyfinDevice(ExternalClientDevice):
         if not session_id:
             return False
         try:
-            self._client.jellyfin.remote_stop(session_id)
+            await asyncio.to_thread(self._client.jellyfin.remote_stop, session_id)
             return True
         except Exception as err:
             _LOG.error("Stop failed: %s", err)
@@ -371,7 +373,7 @@ class JellyfinDevice(ExternalClientDevice):
         if not session_id:
             return False
         try:
-            self._client.jellyfin.remote(session_id, command)
+            await asyncio.to_thread(self._client.jellyfin.remote, session_id, command)
             return True
         except Exception as err:
             _LOG.error("Playstate command '%s' failed: %s", command, err)
@@ -383,7 +385,7 @@ class JellyfinDevice(ExternalClientDevice):
             return False
         try:
             position_ticks = position_seconds * TICKS_PER_SECOND
-            self._client.jellyfin.remote_seek(session_id, position_ticks)
+            await asyncio.to_thread(self._client.jellyfin.remote_seek, session_id, position_ticks)
             return True
         except Exception as err:
             _LOG.error("Seek failed: %s", err)
@@ -394,7 +396,7 @@ class JellyfinDevice(ExternalClientDevice):
         if not session_id:
             return False
         try:
-            self._client.jellyfin.remote_set_volume(session_id, volume)
+            await asyncio.to_thread(self._client.jellyfin.remote_set_volume, session_id, volume)
             return True
         except Exception as err:
             _LOG.error("Set volume failed: %s", err)
@@ -411,7 +413,7 @@ class JellyfinDevice(ExternalClientDevice):
         if not session_id:
             return False
         try:
-            self._client.jellyfin.remote_mute(session_id)
+            await asyncio.to_thread(self._client.jellyfin.remote_mute, session_id)
             return True
         except Exception as err:
             _LOG.error("Mute failed: %s", err)
@@ -422,7 +424,7 @@ class JellyfinDevice(ExternalClientDevice):
         if not session_id:
             return False
         try:
-            self._client.jellyfin.remote_unmute(session_id)
+            await asyncio.to_thread(self._client.jellyfin.remote_unmute, session_id)
             return True
         except Exception as err:
             _LOG.error("Unmute failed: %s", err)
@@ -433,7 +435,7 @@ class JellyfinDevice(ExternalClientDevice):
         if not session_id:
             return False
         try:
-            self._client.jellyfin.command(session_id, command)
+            await asyncio.to_thread(self._client.jellyfin.command, session_id, command)
             return True
         except Exception as err:
             _LOG.error("Command '%s' failed: %s", command, err)
@@ -444,7 +446,7 @@ class JellyfinDevice(ExternalClientDevice):
         if not session_id:
             return False
         try:
-            self._client.jellyfin.remote_play_media(session_id, [item_id], "PlayNow")
+            await asyncio.to_thread(self._client.jellyfin.remote_play_media, session_id, [item_id], "PlayNow")
             return True
         except Exception as err:
             _LOG.error("Play item failed: %s", err)

@@ -7,13 +7,14 @@ Setup flow for Jellyfin integration.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import socket
 from typing import Any
 
 from jellyfin_apiclient_python import Jellyfin
 from jellyfin_apiclient_python.connection_manager import CONNECTION_STATE
-from ucapi import RequestUserInput, SetupAction
+from ucapi import IntegrationSetupError, RequestUserInput, SetupAction, SetupError
 from ucapi_framework import BaseSetupFlow
 
 from uc_intg_jellyfin.config import JellyfinConfig
@@ -27,22 +28,26 @@ class JellyfinSetupFlow(BaseSetupFlow[JellyfinConfig]):
         return self.get_manual_entry_form()
 
     async def _handle_discovery(self) -> SetupAction:
+        # Any screen re-shown from here must move the flow to MANUAL_ENTRY,
+        # otherwise the framework has no handler for the next submission
+        # ("No handler for user input in step: 4") and the setup aborts.
         if self._pre_discovery_data:
             host = self._pre_discovery_data.get("host")
             username = self._pre_discovery_data.get("username")
-            password = self._pre_discovery_data.get("password")
 
-            if not all([host, username, password]):
-                return self.get_manual_entry_form()
+            if not host or not username:
+                return await self._handle_manual_entry()
 
             try:
                 result = await self.query_device(self._pre_discovery_data)
                 if hasattr(result, "identifier"):
                     return await self._finalize_device_setup(result, self._pre_discovery_data)
-                return result
+                return await self._handle_manual_entry()
             except Exception as err:
                 _LOG.error("Discovery failed: %s", err)
-                return self.get_manual_entry_form()
+                if "Authentication failed" in str(err):
+                    return SetupError(error_type=IntegrationSetupError.AUTHORIZATION_ERROR)
+                return SetupError(error_type=IntegrationSetupError.CONNECTION_REFUSED)
 
         return await self._handle_manual_entry()
 
@@ -77,9 +82,10 @@ class JellyfinSetupFlow(BaseSetupFlow[JellyfinConfig]):
     ) -> JellyfinConfig | RequestUserInput:
         host = (input_values.get("host") or "").strip().rstrip("/")
         username = (input_values.get("username") or "").strip()
-        password = (input_values.get("password") or "").strip()
+        # Jellyfin allows accounts without a password
+        password = input_values.get("password") or ""
 
-        if not all([host, username, password]):
+        if not host or not username:
             return self.get_manual_entry_form()
 
         if not host.startswith(("http://", "https://")):
@@ -96,11 +102,11 @@ class JellyfinSetupFlow(BaseSetupFlow[JellyfinConfig]):
             client.config.http("Jellyfin-Integration/2.0.0")
             client.config.data["auth.ssl"] = host.startswith("https")
 
-            connect_result = client.auth.connect_to_address(host)
+            connect_result = await asyncio.to_thread(client.auth.connect_to_address, host)
             if CONNECTION_STATE(connect_result["State"]) != CONNECTION_STATE.ServerSignIn:
                 raise ValueError(f"Cannot reach Jellyfin server at {host}")
 
-            auth_result = client.auth.login(host, username, password)
+            auth_result = await asyncio.to_thread(client.auth.login, host, username, password)
             if "AccessToken" not in auth_result:
                 raise ValueError("Authentication failed - check credentials")
 
@@ -112,12 +118,12 @@ class JellyfinSetupFlow(BaseSetupFlow[JellyfinConfig]):
             server_id = "unknown"
             server_name = "Jellyfin"
             try:
-                server_info = client.jellyfin.get_system_info()
+                server_info = await asyncio.to_thread(client.jellyfin.get_system_info)
                 server_id = server_info.get("Id", "unknown")
                 server_name = server_info.get("ServerName", "Jellyfin")
             except Exception:
                 try:
-                    pub_info = client.jellyfin.get_public_info()
+                    pub_info = await asyncio.to_thread(client.jellyfin.get_public_info)
                     server_id = pub_info.get("Id", "unknown")
                     server_name = pub_info.get("ServerName", "Jellyfin")
                 except Exception:
@@ -136,7 +142,7 @@ class JellyfinSetupFlow(BaseSetupFlow[JellyfinConfig]):
             )
 
             try:
-                all_sessions = client.jellyfin.sessions()
+                all_sessions = await asyncio.to_thread(client.jellyfin.sessions)
                 _LOG.info("Total sessions returned: %d", len(all_sessions or []))
                 for s in (all_sessions or []):
                     _LOG.debug(
