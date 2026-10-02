@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "uc-intg-jellyfin"
-version = "2.4.1"
+version = "2.4.2"
 description = "Jellyfin integration for Unfolded Circle Remote Two/3"
 readme = "README.md"
 requires-python = ">=3.11"

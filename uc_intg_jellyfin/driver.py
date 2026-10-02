@@ -201,6 +201,24 @@ class JellyfinDriver(BaseIntegrationDriver[JellyfinDevice, JellyfinConfig]):
                 self._register_device_entities(dev_cfg, device, config)
             _LOG.info("Dynamically added device: %s (%s)", name, new_device_id)
 
+    async def on_device_connection_error(self, device_id: str, message: str) -> None:
+        """Keep retrying after a failed connect.
+
+        The framework connects again only on the next Remote connect, wake or
+        subscribe, so a server that is unreachable at that moment (e.g. the
+        Remote's Wi-Fi is not up yet after standby) would stay disconnected.
+        The retry loop is a no-op for devices whose watchdog already runs.
+        """
+        await super().on_device_connection_error(device_id, message)
+        self._start_retry_task()
+
+    async def on_r2_enter_standby(self) -> None:
+        """Stop background retries while the Remote sleeps; wake reconnects."""
+        if self._retry_task is not None and not self._retry_task.done():
+            self._retry_task.cancel()
+        self._retry_task = None
+        await super().on_r2_enter_standby()
+
     def _start_retry_task(self) -> None:
         if self._retry_task is None or self._retry_task.done():
             self._retry_task = asyncio.create_task(self._retry_connection())
